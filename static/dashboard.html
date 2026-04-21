@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClarityLens Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --ink: #1f2937;
+            --teal: #0f766e;
+            --sand: #f8f3e8;
+            --sun: #f59e0b;
+            --rose: #be123c;
+            --paper: rgba(255, 255, 255, 0.82);
+            --edge: rgba(15, 23, 42, 0.08);
+            --midnight: #111827;
+        }
+        body {
+            font-family: Georgia, "Times New Roman", serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 0% 0%, rgba(15, 118, 110, 0.14), transparent 28%),
+                radial-gradient(circle at 100% 10%, rgba(245, 158, 11, 0.16), transparent 22%),
+                linear-gradient(180deg, #f7fafc 0%, #edf7f5 40%, #fff9ef 100%);
+        }
+        .glass {
+            background: var(--paper);
+            border: 1px solid var(--edge);
+            box-shadow: 0 28px 70px rgba(15, 23, 42, 0.08);
+            backdrop-filter: blur(14px);
+        }
+        .drop-zone {
+            border: 2px dashed rgba(15, 118, 110, 0.36);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.72), rgba(217,243,239,0.72)),
+                linear-gradient(135deg, rgba(248,243,232,0.92), rgba(255,255,255,0.8));
+            transition: all 0.25s ease;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            transform: translateY(-2px);
+            border-color: rgba(190, 24, 93, 0.5);
+            box-shadow: 0 18px 45px rgba(190, 24, 93, 0.12);
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #0f766e, #0f766e 35%, #f59e0b);
+            transition: width 0.45s ease;
+        }
+        .fade-in {
+            animation: fadeIn 0.45s ease;
+        }
+        .timeline-dot {
+            transition: all 0.25s ease;
+        }
+        .timeline-dot.active {
+            background: #0f766e;
+            box-shadow: 0 0 0 8px rgba(15, 118, 110, 0.12);
+            animation: pulse 1.6s infinite;
+        }
+        .timeline-dot.done {
+            background: #0f766e;
+        }
+        .timeline-dot.waiting {
+            background: #cbd5e1;
+        }
+        .timeline-line {
+            width: 2px;
+            background: linear-gradient(180deg, rgba(15, 118, 110, 0.3), rgba(203, 213, 225, 0.3));
+        }
+        .stage-row {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+        }
+        .stage-row.active {
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.92));
+            border-color: rgba(15, 118, 110, 0.22);
+            transform: translateX(4px);
+            box-shadow: 0 18px 40px rgba(15, 118, 110, 0.12);
+        }
+        .stage-row.done {
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.06), rgba(255, 255, 255, 0.9));
+        }
+        .stage-row.waiting {
+            opacity: 0.82;
+        }
+        .preview-card {
+            min-height: 118px;
+            position: relative;
+            overflow: hidden;
+        }
+        .preview-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.32) 45%, transparent 80%);
+            transform: translateX(-120%);
+            animation: sweep 3.2s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .signal-orb {
+            animation: floaty 4s ease-in-out infinite;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        @keyframes sweep {
+            0% { transform: translateX(-120%); }
+            55% { transform: translateX(130%); }
+            100% { transform: translateX(130%); }
+        }
+        @keyframes floaty {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <header class="px-4 py-8 md:px-8">
+        <div class="glass mx-auto max-w-7xl rounded-[36px] px-6 py-8 md:px-10">
+            <div class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+                <div>
+                    <p class="mb-3 text-sm uppercase tracking-[0.35em] text-teal-700">Multi-Agent Analytics Framework</p>
+                    <h1 class="max-w-4xl text-4xl font-bold leading-tight text-slate-900 md:text-6xl">ClarityLens Analytics</h1>
+                    <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-700">
+                        Turn spreadsheets, reports, notes, JSON, pasted text, and messy documents into structured understanding.
+                        The experience is built for non-technical users who need to see what matters, why it matters, and what to do next.
+                    </p>
+                </div>
+                <div class="rounded-[30px] bg-slate-950 p-6 text-white shadow-2xl">
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-400">What This Product Delivers</p>
+                    <div class="mt-4 grid gap-3">
+                        <div class="rounded-2xl bg-white/10 px-4 py-3">Numerical data becomes charts, comparisons, and business-friendly explanations.</div>
+                        <div class="rounded-2xl bg-white/10 px-4 py-3">Unstructured data becomes themes, topics, findings, and recommendations.</div>
+                        <div class="rounded-2xl bg-white/10 px-4 py-3">Users can keep asking questions without needing to re-explain the data.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 pb-16 md:px-8">
+        <section id="input-section" class="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <div class="glass rounded-[32px] p-6 md:p-8">
+                <div class="mb-5 flex items-center gap-3">
+                    <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-teal-800">Upload</span>
+                    <h2 class="text-2xl font-semibold">Analyze a file</h2>
+                </div>
+                <div id="drop-zone" class="drop-zone rounded-[28px] p-12 text-center cursor-pointer">
+                    <input type="file" id="file-input" class="hidden" accept=".csv,.xlsx,.xls,.json,.pdf,.txt,.doc,.docx,.xml,.parquet">
+                    <i class="fas fa-cloud-arrow-up text-5xl text-teal-700"></i>
+                    <p class="mt-6 text-xl font-semibold text-slate-900">Drop a file here or click to browse</p>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">CSV, Excel, JSON, PDF, TXT, DOC, DOCX, XML, Parquet up to 50MB</p>
+                </div>
+                <div id="file-info" class="mt-4 hidden rounded-2xl bg-teal-50 px-4 py-3 text-sm text-slate-700">
+                    Selected file: <span id="selected-file" class="font-semibold"></span>
+                </div>
+            </div>
+
+            <div class="glass rounded-[32px] p-6 md:p-8">
+                <div class="mb-5 flex items-center gap-3">
+                    <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-amber-800">Flexible Input</span>
+                    <h2 class="text-2xl font-semibold">Paste data in any format</h2>
+                </div>
+                <label class="mb-3 block text-sm font-semibold text-slate-700" for="analysis-goal">Optional goal</label>
+                <input id="analysis-goal" type="text" class="mb-4 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 outline-none focus:border-teal-500" placeholder="Example: explain sales drop, summarize patient data, extract themes from customer feedback">
+                <label class="mb-3 block text-sm font-semibold text-slate-700" for="text-input">Paste your content</label>
+                <textarea id="text-input" rows="13" class="w-full rounded-[28px] border border-slate-200 bg-white/80 px-4 py-4 outline-none focus:border-teal-500" placeholder="Paste raw text, reports, notes, CSV rows, JSON, or any unstructured content you want transformed into understandable insights..."></textarea>
+                <div class="mt-4 flex flex-wrap gap-3">
+                    <button id="analyze-text-btn" class="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-teal-800">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Analyze pasted input
+                    </button>
+                    <button id="clear-input-btn" class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-6 py-3 text-sm font-semibold text-slate-700 hover:border-slate-400">
+                        <i class="fas fa-eraser"></i>
+                        Clear input
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="progress-section" class="glass mt-8 hidden rounded-[32px] p-6 md:p-8">
+            <div class="mb-5 flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-semibold">Building your analysis story</h2>
+                    <p id="progress-message" class="mt-1 text-slate-600">Preparing the workflow...</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Progress</p>
+                    <p id="progress-percent" class="text-3xl font-bold text-teal-800">0%</p>
+                </div>
+            </div>
+            <div class="mb-8 h-4 w-full overflow-hidden rounded-full bg-slate-200">
+                <div id="progress-bar" class="progress-bar h-full rounded-full" style="width: 0%"></div>
+            </div>
+            <div class="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                <div class="rounded-[28px] border border-slate-200 bg-white/70 p-5">
+                    <div class="mb-4">
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Pipeline Timeline</p>
+                        <h3 class="mt-2 text-xl font-semibold">Analysis Journey</h3>
+                    </div>
+                    <div id="pipeline-timeline" class="space-y-3"></div>
+                </div>
+                <div class="space-y-6">
+                    <div class="rounded-[28px] bg-slate-950 px-6 py-6 text-white">
+                        <div class="mb-2 flex items-center justify-between gap-3">
+                            <p class="text-xs uppercase tracking-[0.25em] text-slate-400">What's Happening Now</p>
+                            <div class="flex gap-2">
+                                <span class="signal-orb h-2.5 w-2.5 rounded-full bg-teal-400"></span>
+                                <span class="signal-orb h-2.5 w-2.5 rounded-full bg-amber-400" style="animation-delay: 0.4s;"></span>
+                                <span class="signal-orb h-2.5 w-2.5 rounded-full bg-rose-400" style="animation-delay: 0.8s;"></span>
+                            </div>
+                        </div>
+                        <h3 id="current-stage-label" class="mt-3 text-2xl font-semibold">Preparing your analysis</h3>
+                        <p id="current-stage-description" class="mt-3 text-slate-300 leading-7">We are setting up the journey for your data.</p>
+                        <p id="current-stage-note" class="mt-4 rounded-2xl bg-white/10 px-4 py-3 text-sm leading-6 text-slate-200">Your input has entered the analysis journey.</p>
+                    </div>
+                    <div class="rounded-[28px] border border-slate-200 bg-white/70 p-5">
+                        <div class="mb-4">
+                            <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Live Preview</p>
+                            <h3 class="mt-2 text-xl font-semibold">Signals we can already see</h3>
+                        </div>
+                        <div id="preview-cards" class="grid gap-3 sm:grid-cols-2"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="results-section" class="mt-8 hidden space-y-6">
+            <div class="glass rounded-[32px] p-6 md:p-8">
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Analysis Outcome</p>
+                        <h2 class="mt-2 text-3xl font-semibold">Decision-ready understanding</h2>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <span id="analysis-mode-badge" class="rounded-full bg-teal-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-teal-800">Mode</span>
+                        <button id="new-analysis-btn" class="rounded-full border border-slate-300 bg-white/80 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-400">Analyze another input</button>
+                        <button id="download-btn" class="rounded-full bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800">Download PDF report</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                <div class="glass rounded-[32px] p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold">Executive Summary</h2>
+                    <p id="summary-text" class="mt-4 leading-8 text-slate-700"></p>
+                    <div class="mt-6 rounded-[28px] bg-slate-950 px-6 py-5 text-slate-100">
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Overall Response</p>
+                        <p id="overall-response" class="mt-3 leading-8"></p>
+                    </div>
+                </div>
+                <div class="glass rounded-[32px] p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold">Analysis Facts</h2>
+                    <div id="statistics-container" class="mt-5 grid gap-3"></div>
+                </div>
+            </div>
+
+            <div class="grid gap-6 lg:grid-cols-2">
+                <div class="glass rounded-[32px] p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold">Key Findings</h2>
+                    <div id="insights-container" class="mt-5 space-y-3"></div>
+                </div>
+                <div class="glass rounded-[32px] p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold">Recommendations</h2>
+                    <div id="recommendations-container" class="mt-5 space-y-3"></div>
+                </div>
+            </div>
+
+            <div class="grid gap-6 lg:grid-cols-2">
+                <div class="glass rounded-[32px] p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold">Structured Interpretation</h2>
+                    <div id="structured-view" class="mt-5 grid gap-3"></div>
+                </div>
+                <div class="glass rounded-[32px] p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold">How To Read The Visuals</h2>
+                    <div id="visual-story" class="mt-5 space-y-3"></div>
+                </div>
+            </div>
+
+            <div class="glass rounded-[32px] p-6 md:p-8">
+                <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h2 class="text-2xl font-semibold">Evaluation Metric Results</h2>
+                        <p class="mt-1 text-sm text-slate-600">Detected model-performance values found in the analyzed content.</p>
+                    </div>
+                </div>
+                <div id="metric-results-container" class="mt-5 grid gap-4 lg:grid-cols-2"></div>
+            </div>
+
+            <div id="charts-section" class="glass hidden rounded-[32px] p-6 md:p-8">
+                <div class="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-semibold">Visual Narratives</h2>
+                        <p class="mt-1 text-sm text-slate-600">Each chart is interactive, includes plain-language guidance, and can be explained further.</p>
+                    </div>
+                </div>
+                <div id="charts-container" class="grid gap-6 md:grid-cols-2"></div>
+            </div>
+
+            <div class="glass rounded-[32px] p-6 md:p-8">
+                <div class="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                    <div>
+                        <h2 class="text-2xl font-semibold">Suggested next questions</h2>
+                        <div id="suggested-questions" class="mt-5 flex flex-wrap gap-3"></div>
+                    </div>
+                    <div>
+                        <div class="mb-4">
+                            <h2 class="text-2xl font-semibold">Ask about this data</h2>
+                            <p class="mt-1 text-slate-600">Ask natural-language questions and keep the conversation grounded in the analyzed input.</p>
+                        </div>
+                        <div class="grid gap-4 md:grid-cols-[1fr_auto]">
+                            <textarea id="query-input" rows="3" class="w-full rounded-[28px] border border-slate-200 bg-white/80 px-4 py-4 outline-none focus:border-teal-500" placeholder="Example: What is the biggest risk here? Which segment should leadership focus on first? What do the charts imply?"></textarea>
+                            <button id="ask-btn" class="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-rose-700">Ask question</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="query-results" class="mt-6 space-y-4"></div>
+            </div>
+        </section>
+
+        <section id="error-section" class="mt-8 hidden">
+            <div class="glass rounded-[32px] border border-rose-200 p-6 text-rose-900">
+                <h2 class="text-2xl font-semibold">Something blocked the analysis</h2>
+                <p id="error-message" class="mt-3 leading-7"></p>
+                <div class="mt-5 flex gap-3">
+                    <button id="retry-btn" class="rounded-full bg-rose-700 px-5 py-3 text-sm font-semibold text-white hover:bg-rose-800">Reset</button>
+                    <button id="error-home-btn" class="rounded-full border border-rose-300 bg-white/70 px-5 py-3 text-sm font-semibold text-rose-800 hover:border-rose-400">Back to input</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let currentJobId = null;
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const selectedFile = document.getElementById('selected-file');
+        const progressSection = document.getElementById('progress-section');
+        const resultsSection = document.getElementById('results-section');
+        const errorSection = document.getElementById('error-section');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        const progressMessage = document.getElementById('progress-message');
+        const errorMessage = document.getElementById('error-message');
+        const textInput = document.getElementById('text-input');
+        const analysisGoal = document.getElementById('analysis-goal');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (event.dataTransfer.files.length) handleFile(event.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (event) => {
+            if (event.target.files.length) handleFile(event.target.files[0]);
+        });
+
+        document.getElementById('analyze-text-btn').addEventListener('click', analyzeTextInput);
+        document.getElementById('ask-btn').addEventListener('click', askQuestion);
+        document.getElementById('retry-btn').addEventListener('click', resetView);
+        document.getElementById('error-home-btn').addEventListener('click', resetView);
+        document.getElementById('new-analysis-btn').addEventListener('click', resetView);
+        document.getElementById('clear-input-btn').addEventListener('click', clearInput);
+
+        async function handleFile(file) {
+            selectedFile.textContent = file.name;
+            fileInfo.classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showProgress();
+                const response = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.detail || 'Upload failed');
+                currentJobId = payload.job_id;
+                updateProcessing(payload);
+                pollStatus(currentJobId);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function analyzeTextInput() {
+            const content = textInput.value.trim();
+            if (!content) {
+                showError('Paste some content before starting the analysis.');
+                return;
+            }
+
+            try {
+                showProgress();
+                const response = await fetch(`${API_BASE}/analyze-text`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content,
+                        title: 'pasted_input.txt',
+                        goal: analysisGoal.value.trim() || null
+                    })
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.detail || 'Text analysis failed');
+                currentJobId = payload.job_id;
+                updateProcessing(payload);
+                pollStatus(currentJobId);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function showProgress() {
+            document.getElementById('input-section').classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            errorSection.classList.add('hidden');
+            progressSection.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+            progressMessage.textContent = 'Preparing the analysis flow...';
+            renderPipeline([]);
+            renderPreviewCards([]);
+        }
+
+        function updateProcessing(payload) {
+            progressBar.style.width = `${payload.progress || 0}%`;
+            progressPercent.textContent = `${payload.progress || 0}%`;
+            progressMessage.textContent = payload.message || 'Processing...';
+
+            const processing = payload.processing || {};
+            document.getElementById('current-stage-label').textContent = processing.current_label || 'Preparing your analysis';
+            document.getElementById('current-stage-description').textContent = processing.current_description || 'We are setting up the journey for your data.';
+            document.getElementById('current-stage-note').textContent = processing.live_note || payload.message || '';
+
+            renderPipeline(processing.stages || []);
+            renderPreviewCards(processing.preview_cards || []);
+        }
+
+        function renderPipeline(stages) {
+            const container = document.getElementById('pipeline-timeline');
+            if (!stages.length) {
+                container.innerHTML = '<p class="text-slate-500">The pipeline will appear once analysis begins.</p>';
+                return;
+            }
+
+            container.innerHTML = stages.map((stage, index) => `
+                <div class="stage-row ${stage.status} flex gap-4 rounded-[24px] border border-slate-200 px-4 py-4">
+                    <div class="flex flex-col items-center">
+                        <div class="timeline-dot ${stage.status} flex h-10 w-10 items-center justify-center rounded-full text-white">
+                            <i class="fas ${stage.icon} text-sm"></i>
+                        </div>
+                        ${index < stages.length - 1 ? '<div class="timeline-line mt-2 flex-1"></div>' : ''}
+                    </div>
+                    <div class="pb-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <p class="text-sm font-semibold text-slate-900">${escapeHtml(stage.label)}</p>
+                            <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                                stage.status === 'done'
+                                    ? 'bg-teal-100 text-teal-800'
+                                    : stage.status === 'active'
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : 'bg-slate-100 text-slate-500'
+                            }">${escapeHtml(stage.status)}</span>
+                        </div>
+                        <p class="mt-1 text-sm leading-6 text-slate-600">${escapeHtml(stage.description)}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderPreviewCards(cards) {
+            const container = document.getElementById('preview-cards');
+            if (!cards.length) {
+                container.innerHTML = `
+                    <div class="preview-card rounded-[24px] border border-slate-200 bg-white/80 px-4 py-4 text-slate-500">
+                        We will show detected signals here as soon as the pipeline starts reading your input.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = cards.map((card) => `
+                <div class="preview-card fade-in rounded-[24px] border border-slate-200 bg-white/80 px-4 py-4">
+                    <p class="text-xs uppercase tracking-[0.25em] text-slate-500">${escapeHtml(card.label)}</p>
+                    <p class="mt-3 leading-7 text-slate-800">${escapeHtml(card.value)}</p>
+                </div>
+            `).join('');
+        }
+
+        async function pollStatus(jobId, retryCount = 0) {
+            try {
+                const response = await fetch(`${API_BASE}/status/${jobId}`);
+                const payload = await response.json();
+
+                updateProcessing(payload);
+
+                if (payload.status === 'completed') {
+                    showResults(jobId);
+                    return;
+                }
+                if (payload.status === 'failed') {
+                    throw new Error(payload.message || 'Processing failed');
+                }
+
+                setTimeout(() => pollStatus(jobId, 0), 2500);
+            } catch (error) {
+                if (retryCount < 8) {
+                    setTimeout(() => pollStatus(jobId, retryCount + 1), 3500);
+                } else {
+                    showError(error.message || 'Unable to fetch job status');
+                }
+            }
+        }
+
+        async function showResults(jobId) {
+            try {
+                const response = await fetch(`${API_BASE}/result/${jobId}`);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || 'Failed to load result');
+
+                progressSection.classList.add('hidden');
+                errorSection.classList.add('hidden');
+                resultsSection.classList.remove('hidden');
+
+                document.getElementById('summary-text').textContent = data.summary || 'No summary available.';
+                document.getElementById('overall-response').textContent = data.overall_response || 'No overall response available.';
+                document.getElementById('analysis-mode-badge').textContent = prettify(data.analysis_mode || 'unknown');
+
+                renderFacts(data);
+                renderList('insights-container', data.insights || [], 'bg-emerald-50 border-emerald-300');
+                renderList('recommendations-container', data.recommendations || [], 'bg-amber-50 border-amber-300');
+                renderStructuredView(data.structured_view || {});
+                renderMetricResults(data.project_metric_results || []);
+                renderList('visual-story', data.visual_story || [], 'bg-slate-50 border-slate-200');
+                renderSuggestedQuestions(data.suggested_questions || []);
+                renderCharts(data.visualizations || {});
+                renderQuestions(data.question_history || []);
+
+                document.getElementById('download-btn').onclick = () => {
+                    window.location.href = `${API_BASE}/download/${jobId}`;
+                };
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderFacts(data) {
+            const facts = [];
+            const info = data.statistics?.basic_info;
+            const metadata = data.metadata || {};
+
+            facts.push({ label: 'Analysis mode', value: prettify(data.analysis_mode || 'unknown') });
+            facts.push({ label: 'Input type', value: prettify(data.file_type || 'unknown') });
+            if (metadata.rows) facts.push({ label: 'Rows', value: metadata.rows });
+            if (metadata.columns) facts.push({ label: 'Columns', value: metadata.columns.length });
+            if (info?.memory_usage_mb !== undefined) facts.push({ label: 'Memory', value: `${info.memory_usage_mb.toFixed(2)} MB` });
+            facts.push({ label: 'Charts', value: data.visualizations?.chart_count || 0 });
+
+            const container = document.getElementById('statistics-container');
+            container.innerHTML = facts.map((item) => `
+                <div class="rounded-[24px] border border-slate-200 bg-white/80 px-4 py-4">
+                    <p class="text-xs uppercase tracking-[0.25em] text-slate-500">${escapeHtml(item.label)}</p>
+                    <p class="mt-2 text-xl font-semibold text-slate-900">${escapeHtml(String(item.value))}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderList(containerId, items, toneClasses) {
+            const container = document.getElementById(containerId);
+            if (!items.length) {
+                container.innerHTML = '<p class="text-slate-500">No items available.</p>';
+                return;
+            }
+
+            container.innerHTML = items.map((item, index) => `
+                <div class="fade-in rounded-[24px] border px-4 py-4 ${toneClasses}">
+                    <p class="leading-7 text-slate-800"><span class="mr-2 font-semibold">${index + 1}.</span>${escapeHtml(item)}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderStructuredView(structuredView) {
+            const container = document.getElementById('structured-view');
+            const entries = Object.entries(structuredView || {});
+            if (!entries.length) {
+                container.innerHTML = '<p class="text-slate-500">No structured interpretation was returned for this input.</p>';
+                return;
+            }
+
+            container.innerHTML = entries.map(([key, value]) => {
+                const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
+                return `
+                    <div class="fade-in rounded-[24px] border border-slate-200 bg-white/80 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.25em] text-slate-500">${escapeHtml(prettify(key))}</p>
+                        <p class="mt-2 leading-7 text-slate-800">${escapeHtml(displayValue)}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMetricResults(metricResults) {
+            const container = document.getElementById('metric-results-container');
+            if (!metricResults.length) {
+                container.innerHTML = '<p class="text-slate-500">No evaluation metric results were detected in this input.</p>';
+                return;
+            }
+
+            container.innerHTML = metricResults.map((metric) => {
+                const unavailable = !metric.display_value || metric.display_value === 'Not available';
+                return `
+                    <article class="fade-in rounded-[28px] border border-slate-200 bg-white/85 px-5 py-5">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Metric</p>
+                                <h3 class="mt-2 text-xl font-semibold text-slate-900">${escapeHtml(metric.name || 'Unknown')}</h3>
+                            </div>
+                            <span class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${unavailable ? 'bg-slate-100 text-slate-500' : 'bg-teal-100 text-teal-800'}">
+                                ${escapeHtml(metric.display_value || 'Not available')}
+                            </span>
+                        </div>
+                        <div class="mt-4 rounded-[22px] ${unavailable ? 'bg-slate-50' : 'bg-emerald-50'} px-4 py-4">
+                            <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Interpretation</p>
+                            <p class="mt-2 leading-7 text-slate-700">${escapeHtml(metric.verdict || 'No interpretation available.')}</p>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function renderSuggestedQuestions(questions) {
+            const container = document.getElementById('suggested-questions');
+            if (!questions.length) {
+                container.innerHTML = '<p class="text-slate-500">No suggested questions available.</p>';
+                return;
+            }
+
+            container.innerHTML = questions.map((question) => `
+                <button class="suggested-question rounded-full border border-slate-300 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-teal-500 hover:text-teal-800" data-question="${escapeHtmlAttr(question)}">
+                    ${escapeHtml(question)}
+                </button>
+            `).join('');
+
+            container.querySelectorAll('.suggested-question').forEach((button) => {
+                button.addEventListener('click', () => {
+                    document.getElementById('query-input').value = button.dataset.question || '';
+                    document.getElementById('query-input').focus();
+                });
+            });
+        }
+
+        function renderCharts(visualizations) {
+            const section = document.getElementById('charts-section');
+            const container = document.getElementById('charts-container');
+            if (!visualizations.has_charts || !(visualizations.charts || []).length) {
+                section.classList.add('hidden');
+                container.innerHTML = '';
+                return;
+            }
+
+            section.classList.remove('hidden');
+            container.innerHTML = visualizations.charts.map((chart) => `
+                <article class="fade-in overflow-hidden rounded-[28px] border border-slate-200 bg-white">
+                    <div class="border-b border-slate-100 px-5 py-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.25em] text-slate-500">${escapeHtml(prettify(chart.type))}</p>
+                                <h3 class="mt-2 text-xl font-semibold text-slate-900">${escapeHtml(chart.title)}</h3>
+                            </div>
+                            <button class="explain-chart-btn rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-700 hover:border-teal-500 hover:text-teal-800" data-chart-id="${chart.chart_id}">
+                                Explain This Chart
+                            </button>
+                        </div>
+                        <p class="mt-3 text-sm leading-6 text-slate-600">${escapeHtml(chart.caption || 'This chart helps explain an important pattern in the data.')}</p>
+                    </div>
+                    <div id="plot-${chart.chart_id}" class="h-[380px] w-full bg-slate-50"></div>
+                    <div class="border-t border-slate-100 px-5 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">How to interact</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Hover for details, click legend items to isolate categories, and use the chart toolbar to zoom or reset the view.</p>
+                        <div id="chart-explanation-${chart.chart_id}" class="mt-4 hidden rounded-[20px] bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700"></div>
+                    </div>
+                </article>
+            `).join('');
+
+            visualizations.charts.forEach((chart) => {
+                const target = document.getElementById(`plot-${chart.chart_id}`);
+                if (target && chart.figure_json) {
+                    const figure = chart.figure_json;
+                    const layout = {
+                        ...figure.layout,
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        margin: { l: 42, r: 16, t: 56, b: 48, ...(figure.layout?.margin || {}) },
+                    };
+                    Plotly.newPlot(target, figure.data, layout, {
+                        responsive: true,
+                        displaylogo: false,
+                        modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+                    });
+                }
+            });
+
+            container.querySelectorAll('.explain-chart-btn').forEach((button) => {
+                button.addEventListener('click', () => explainChart(Number(button.dataset.chartId)));
+            });
+        }
+
+        async function explainChart(chartId) {
+            if (!currentJobId) return;
+            const box = document.getElementById(`chart-explanation-${chartId}`);
+            if (!box) return;
+
+            box.classList.remove('hidden');
+            box.textContent = 'Preparing a plain-language explanation for this chart...';
+
+            try {
+                const response = await fetch(`${API_BASE}/chart-explain/${currentJobId}/${chartId}`, { method: 'POST' });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.detail || 'Could not explain this chart');
+                box.textContent = payload.explanation || 'No explanation available.';
+            } catch (error) {
+                box.textContent = error.message;
+            }
+        }
+
+        async function askQuestion() {
+            const input = document.getElementById('query-input');
+            const question = input.value.trim();
+            if (!currentJobId) {
+                showError('Run an analysis first, then ask follow-up questions.');
+                return;
+            }
+            if (!question) {
+                showError('Type a question about the analyzed data first.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/query/${currentJobId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.detail || 'Query failed');
+                input.value = '';
+                const list = document.getElementById('query-results');
+                list.insertAdjacentHTML('afterbegin', renderQuestionCard(payload.question, payload.answer));
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderQuestions(history) {
+            const container = document.getElementById('query-results');
+            if (!history.length) {
+                container.innerHTML = '<p class="text-slate-500">No follow-up questions yet.</p>';
+                return;
+            }
+            container.innerHTML = history.slice().reverse().map((entry) => renderQuestionCard(entry.question, entry.answer)).join('');
+        }
+
+        function renderQuestionCard(question, answer) {
+            return `
+                <article class="fade-in rounded-[28px] border border-slate-200 bg-white/85 px-5 py-5">
+                    <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Question</p>
+                    <p class="mt-2 text-lg font-semibold text-slate-900">${escapeHtml(question)}</p>
+                    <p class="mt-4 text-xs uppercase tracking-[0.25em] text-slate-500">Answer</p>
+                    <pre class="mt-2 whitespace-pre-wrap font-serif leading-7 text-slate-700">${escapeHtml(answer)}</pre>
+                </article>
+            `;
+        }
+
+        function showError(message) {
+            progressSection.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            errorSection.classList.remove('hidden');
+            errorMessage.textContent = message;
+        }
+
+        function resetView() {
+            currentJobId = null;
+            clearInput();
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+            progressSection.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            errorSection.classList.add('hidden');
+            document.getElementById('input-section').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function clearInput() {
+            textInput.value = '';
+            analysisGoal.value = '';
+        }
+
+        function prettify(value) {
+            return String(value).replaceAll('_', ' ');
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function escapeHtmlAttr(value) {
+            return escapeHtml(value).replaceAll('\n', '&#10;');
+        }
+    </script>
+</body>
+</html>

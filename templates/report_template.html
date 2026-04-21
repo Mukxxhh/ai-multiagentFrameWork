@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+            margin-top: 30px;
+        }
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .metadata-table th,
+        .metadata-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .metadata-table th {
+            background-color: #3498db;
+            color: white;
+        }
+        .insight-item {
+            background-color: #ecf0f1;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #27ae60;
+        }
+        .chart-container {
+            margin: 20px 0;
+            text-align: center;
+            page-break-inside: avoid;
+        }
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+        }
+        .recommendation-item {
+            background-color: #fff3cd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #f39c12;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 9pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <p><strong>Generated:</strong> {{ generated_at }}</p>
+    </div>
+
+    <!-- File Metadata Section -->
+    <h2>📁 File Information</h2>
+    <table class="metadata-table">
+        <tr>
+            <th>Property</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>File Name</td>
+            <td>{{ file_metadata.file_name }}</td>
+        </tr>
+        <tr>
+            <td>File Type</td>
+            <td>{{ file_type|upper }}</td>
+        </tr>
+        <tr>
+            <td>File Size</td>
+            <td>{{ "%.2f"|format(file_metadata.file_size_mb) }} MB</td>
+        </tr>
+        {% if file_metadata.rows %}
+        <tr>
+            <td>Total Rows</td>
+            <td>{{ file_metadata.rows }}</td>
+        </tr>
+        {% endif %}
+        {% if file_metadata.columns %}
+        <tr>
+            <td>Total Columns</td>
+            <td>{{ file_metadata.columns|length }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td>Contains Numerical Data</td>
+            <td>{% if has_numerical_data %}✓ Yes{% else %}✗ No{% endif %}</td>
+        </tr>
+    </table>
+
+    <!-- Summary Section -->
+    <h2>📊 Executive Summary</h2>
+    <p>{{ summary }}</p>
+
+    <!-- Key Insights Section -->
+    <h2>💡 Key Insights</h2>
+    {% if key_insights %}
+        {% for insight in key_insights %}
+        <div class="insight-item">
+            <strong>Insight {{ loop.index }}:</strong> {{ insight }}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No specific insights were generated for this file.</p>
+    {% endif %}
+
+    <!-- Statistical Summary Section -->
+    {% if statistics and statistics.basic_info %}
+    <h2>📈 Statistical Summary</h2>
+    <table class="metadata-table">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Total Rows</td>
+            <td>{{ statistics.basic_info.total_rows }}</td>
+        </tr>
+        <tr>
+            <td>Total Columns</td>
+            <td>{{ statistics.basic_info.total_columns }}</td>
+        </tr>
+        <tr>
+            <td>Memory Usage</td>
+            <td>{{ "%.2f"|format(statistics.basic_info.memory_usage_mb) }} MB</td>
+        </tr>
+    </table>
+
+    {% if statistics.numerical_summary %}
+    <h3>Numerical Column Statistics</h3>
+    <table class="metadata-table">
+        <tr>
+            <th>Column</th>
+            <th>Count</th>
+            <th>Mean</th>
+            <th>Std</th>
+            <th>Min</th>
+            <th>25%</th>
+            <th>50%</th>
+            <th>75%</th>
+            <th>Max</th>
+        </tr>
+        {% for col, stats in statistics.numerical_summary.items() %}
+        <tr>
+            <td>{{ col }}</td>
+            <td>{{ stats.count|round(2) }}</td>
+            <td>{{ stats.mean|round(2) }}</td>
+            <td>{{ stats.std|round(2) }}</td>
+            <td>{{ stats.min|round(2) }}</td>
+            <td>{{ stats["25%"]|round(2) }}</td>
+            <td>{{ stats["50%"]|round(2) }}</td>
+            <td>{{ stats["75%"]|round(2) }}</td>
+            <td>{{ stats.max|round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    {% endif %}
+
+    <!-- Visualizations Section -->
+    {% if charts %}
+    <h2>📉 Visualizations</h2>
+        {% for chart in charts %}
+        <div class="chart-container">
+            <h3>{{ chart.title }}</h3>
+            {% if chart.image_base64 %}
+            <img src="data:image/png;base64,{{ chart.image_base64 }}" alt="{{ chart.title }}">
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Recommendations Section -->
+    {% if recommendations %}
+    <h2>🎯 Recommendations</h2>
+        {% for rec in recommendations %}
+        <div class="recommendation-item">
+            <strong>Recommendation {{ loop.index }}:</strong> {{ rec }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>This report was automatically generated by AI Insights Dashboard</p>
+        <p>Generated on: {{ generated_at }}</p>
+    </div>
+</body>
+</html>
